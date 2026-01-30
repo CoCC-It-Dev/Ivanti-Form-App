@@ -1,0 +1,229 @@
+import React, { useState, useEffect } from 'react';
+import { useMsal } from '@azure/msal-react';
+import { loginRequest, graphConfig } from '../authConfig';
+import { Shield, LogOut, User } from 'lucide-react';
+
+const Dashboard = () => {
+  const { instance, accounts } = useMsal();
+
+  const [userProfile, setUserProfile] = useState(null);
+  const [userRecord, setUserRecord] = useState(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const [isLoadingRecord, setIsLoadingRecord] = useState(false);
+
+  const account = accounts[0];
+
+  const handleLogout = () => {
+    instance.logoutPopup({
+      postLogoutRedirectUri: '/',
+    });
+  };
+
+  /* -----------------------------
+     Fetch Microsoft Graph profile
+  ------------------------------*/
+  const fetchUserProfile = async () => {
+    setIsLoadingProfile(true);
+    try {
+      const response = await instance.acquireTokenSilent({
+        ...loginRequest,
+        account: account,
+      });
+
+      const graphResponse = await fetch(graphConfig.graphMeEndpoint, {
+        headers: {
+          Authorization: `Bearer ${response.accessToken}`,
+        },
+      });
+
+      const data = await graphResponse.json();
+      setUserProfile(data);
+    } catch (error) {
+      console.error('Failed to fetch profile:', error);
+    } finally {
+      setIsLoadingProfile(false);
+    }
+  };
+
+  /* -----------------------------
+     Fetch internal user record
+  ------------------------------*/
+  const fetchUserRecord = async (email) => {
+    if (!email) return;
+
+    setIsLoadingRecord(true);
+    try {
+      const response = await fetch(
+        `http://10.9.4.46:9084/api/users?email=${encodeURIComponent(email)}`
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch user record');
+      }
+
+      const data = await response.json();
+      setUserRecord(data);
+    } catch (error) {
+      console.error('Failed to fetch internal user record:', error);
+    } finally {
+      setIsLoadingRecord(false);
+    }
+  };
+
+  /* -----------------------------
+     Load data when account exists
+  ------------------------------*/
+  useEffect(() => {
+    if (account) {
+      if (!userProfile) {
+        fetchUserProfile();
+      }
+
+      if (!userRecord && account.username) {
+        fetchUserRecord(account.username);
+      }
+    }
+  }, [account]);
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <nav className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center gap-3">
+              <Shield className="w-8 h-8 text-indigo-600" />
+              <span className="text-xl font-bold text-gray-900">SSO Portal</span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              Logout
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Tickets</h2>
+
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center">
+              <User className="w-8 h-8 text-indigo-600" />
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold text-gray-900">
+                {account?.name || 'Loading...'}
+              </h3>
+              <p className="text-gray-600">{account?.username || 'Loading...'}</p>
+            </div>
+          </div>
+
+          {(isLoadingProfile || isLoadingRecord) && (
+            <div className="text-center py-4">
+              <p className="text-gray-600">Loading user details...</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+            <div className="bg-indigo-50 p-4 rounded-lg">
+              <p className="text-sm text-gray-600 mb-1">Provider</p>
+              <p className="text-lg font-semibold text-indigo-900">
+                Microsoft Azure AD
+              </p>
+            </div>
+
+            <div className="bg-green-50 p-4 rounded-lg">
+              <p className="text-sm text-gray-600 mb-1">Account ID</p>
+              <p className="text-lg font-semibold text-green-900 truncate">
+                {account?.localAccountId?.substring(0, 20) || 'N/A'}...
+              </p>
+            </div>
+
+            <div className="bg-purple-50 p-4 rounded-lg">
+              <p className="text-sm text-gray-600 mb-1">Environment</p>
+              <p className="text-lg font-semibold text-purple-900">
+                {account?.environment || 'Production'}
+              </p>
+            </div>
+
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <p className="text-sm text-gray-600 mb-1">Status</p>
+              <p className="text-lg font-semibold text-blue-900">Active</p>
+            </div>
+          </div>
+
+          {/* Microsoft Graph Profile */}
+          {userProfile && (
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+              <h4 className="font-semibold text-gray-900 mb-2">
+                Microsoft Graph Profile
+              </h4>
+              <div className="space-y-1 text-sm">
+                <p>
+                  <span className="text-gray-600">Display Name:</span>{' '}
+                  <span className="font-medium">
+                    {userProfile.displayName}
+                  </span>
+                </p>
+                <p>
+                  <span className="text-gray-600">Job Title:</span>{' '}
+                  <span className="font-medium">
+                    {userProfile.jobTitle || 'N/A'}
+                  </span>
+                </p>
+                <p>
+                  <span className="text-gray-600">Office Location:</span>{' '}
+                  <span className="font-medium">
+                    {userProfile.officeLocation || 'N/A'}
+                  </span>
+                </p>
+                <p>
+                  <span className="text-gray-600">Mobile Phone:</span>{' '}
+                  <span className="font-medium">
+                    {userProfile.mobilePhone || 'N/A'}
+                  </span>
+                </p>
+                <p>
+                  <span className="text-gray-600">UPN:</span>{' '}
+                  <span className="font-medium">
+                    {userProfile.userPrincipalName}
+                  </span>
+                </p>
+                <p>
+                  <span className="text-gray-600">sAMAccountName:</span>{' '}
+                  <span className="font-medium">
+                    {userProfile.onPremisesSamAccountName || 'N/A'}
+                  </span>
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Internal API Data */}
+          {userRecord && (
+            <div className="mt-6 p-4 bg-yellow-50 rounded-lg">
+              <h4 className="font-semibold text-gray-900 mb-2">
+                Internal User Record
+              </h4>
+              <div className="space-y-1 text-sm">
+                <p>
+                  <span className="text-gray-600">Record ID:</span>{' '}
+                  <span className="font-medium">{userRecord.rec_id}</span>
+                </p>
+                <p>
+                  <span className="text-gray-600">Phone:</span>{' '}
+                  <span className="font-medium">{userRecord.phone1}</span>
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default Dashboard;

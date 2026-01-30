@@ -1,0 +1,31 @@
+import express from 'express';
+import fetch from 'node-fetch';
+
+const app = express();
+app.use(express.json());
+
+app.post('/api/incidents', async (req, res) => {
+  try {
+    const ivantiResponse = await fetch(
+      'https://cctexas-amc.ivanticloud.com/api/odata/businessobject/incidents?=null',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'api-key 1341435rwfqerqe4rq3e4r3245',
+        },
+        body: JSON.stringify(req.body),
+      }
+    );
+
+    const data = await ivantiResponse.json();
+    res.status(ivantiResponse.status).json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ivanti submission failed' });
+  }
+});
+
+app.listen(5000, () => {
+  console.log('Backend running on port 5000');
+});
