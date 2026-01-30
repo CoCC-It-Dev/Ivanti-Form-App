@@ -12,12 +12,14 @@ function App() {
         <Route
           path="/"
           element={
-            <MsalAuthenticationTemplate
-              interactionType={InteractionType.Redirect}
-              authenticationRequest={loginRequest}
-            >
-              <Dashboard />
-            </MsalAuthenticationTemplate>
+            <MsalAuthenticationTemplate 
+  interactionType={InteractionType.Redirect} 
+  authenticationRequest={loginRequest}
+  loadingComponent={() => <p>Authenticating with Microsoft... Please wait.</p>}
+  errorComponent={({error}) => <p>Error: {error.errorMessage}</p>}
+>
+  <Dashboard />
+</MsalAuthenticationTemplate>
           }
         />
       </Routes>

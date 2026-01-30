@@ -21,9 +21,9 @@ import './index.css';
 const msalInstance = new PublicClientApplication(msalConfig);
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
+  
     <MsalProvider instance={msalInstance}>
       <App />
     </MsalProvider>
-  </React.StrictMode>
+  
 );
